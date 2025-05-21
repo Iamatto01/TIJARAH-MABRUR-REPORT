@@ -1,6 +1,8 @@
-pandas
+pandas 
 matplotlib 
 arabic-reshaper 
 python-bidi
 openpyxl
-torch
+torch 
+torchvision 
+torchaudio
