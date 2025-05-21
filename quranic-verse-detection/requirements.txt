@@ -3,3 +3,4 @@ matplotlib
 arabic-reshaper 
 python-bidi
 openpyxl
+torch
