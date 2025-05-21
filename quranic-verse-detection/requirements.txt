@@ -1,6 +1,5 @@
-TensorFlow
-opencv-python
-numpy
-Pillow
-Flask
-matplotlib
+pandas
+matplotlib 
+arabic-reshaper 
+python-bidi
+openpyxl
