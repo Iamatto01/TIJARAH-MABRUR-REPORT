@@ -1,8 +1,0 @@
-pandas 
-matplotlib 
-arabic-reshaper 
-python-bidi
-openpyxl
-torch 
-torchvision 
-torchaudio
