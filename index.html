@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TIJARAH MABRUR – Integrated Technical Reports</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- PDF generation dependencies -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <style>
+    /* Global hardening */
+    #tm-app, #tm-app * { font-family:'Inter',sans-serif !important; box-sizing:border-box !important; }
+    /* Weebly embed font/style overwrite (extended lock) */
+    #tm-app, #tm-app * {
+      color:#111827 !important;
+      font-family:'Inter',sans-serif !important;
+      letter-spacing:normal !important;
+      word-spacing:normal !important;
+      line-height:1.6 !important;
+      white-space:normal !important;
+      word-break:normal !important;
+      text-transform:none !important;
+      text-rendering:optimizeLegibility !important;
+      -webkit-font-smoothing:antialiased !important;
+      -moz-osx-font-smoothing:grayscale !important;
+      box-sizing:border-box !important;
+    }
+    :root{ --tm-primary:#2563eb; --tm-accent:#2563eb; }
+    body{ background:#f1f5f9; color:#111827; }
+
+    /* Corporate brand header */
+    .brand-header{ background:#fff; border:1px solid #e5e7eb; border-radius:1rem; padding:1.25rem 1.5rem; display:flex; flex-wrap:wrap; align-items:center; gap:1.25rem; position:relative; }
+    .brand-header:before{ content:""; position:absolute; inset:0; border-radius:1rem; background:linear-gradient(135deg,#2563eb08,#2563eb10); pointer-events:none; }
+    .brand-logo{ width:70px; height:70px; object-fit:contain; }
+    .brand-meta h1{ font-size:1.15rem; font-weight:800; letter-spacing:.5px; }
+    .brand-meta p{ font-size:.72rem; line-height:1.1rem; margin:0; }
+    .brand-badge{ margin-left:auto; display:flex; flex-direction:column; align-items:flex-end; gap:.35rem; }
+    .brand-badge span{ font-size:.65rem; font-weight:600; letter-spacing:.05em; background:#2563eb; color:#fff; padding:.25rem .55rem; border-radius:.4rem; }
+
+    .card{ border:1px solid #e5e7eb; border-radius:1rem; }
+    .field{ background:#f9fafb; border:2px solid #e5e7eb; border-radius:.55rem; padding:.6rem .85rem; width:100%; font-size:.85rem; }
+    .field:focus{ outline:none; border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.25); }
+    textarea.field{ resize:vertical; min-height:2.75rem; }
+
+    .tabbar{ border:1px solid #e5e7eb; border-radius:1rem; padding:.5rem; background:#fff; }
+    .tab-btn{ display:block; width:100%; text-align:center; padding:.9rem .75rem; border:1px solid #e5e7eb; border-radius:.8rem; font-weight:700; background:#fff; font-size:.7rem; line-height:1.05rem; }
+    .tab-btn.active{ background:var(--tm-primary); color:#fff !important; border-color:var(--tm-primary); }
+
+    .tbl{ border-collapse:collapse; width:100%; }
+    .tbl th,.tbl td{ border:1px solid #e5e7eb; }
+    .tbl th{ background:#f3f4f6; font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; }
+    .badge{ color:#fff; font-size:.65rem; font-weight:600; letter-spacing:.05em; }
+    .accent-bg{ background:var(--tm-primary); color:#fff; }
+    .accent-text{ color:var(--tm-primary); }
+
+    /* Attachment gallery */
+    .att-item{ position:relative; border:1px solid #e5e7eb; border-radius:.75rem; background:#fff; overflow:hidden; display:flex; flex-direction:column; }
+    .att-thumb{ width:100%; aspect-ratio:4/3; object-fit:cover; background:#f1f5f9; display:block; }
+    .att-meta{ padding:.4rem .55rem .55rem; font-size:.65rem; line-height:.85rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .att-remove{ position:absolute; top:.35rem; right:.35rem; background:#ef4444; color:#fff; border:none; font-size:.55rem; padding:.25rem .4rem; border-radius:.4rem; cursor:pointer; }
+    .att-pdf{ display:flex; align-items:center; justify-content:center; font-size:.7rem; font-weight:600; color:#334155; background:linear-gradient(145deg,#f1f5f9,#ffffff); }
+
+    /* Section titles */
+    h2.section-title{ font-weight:800; font-size:1rem; letter-spacing:.5px; display:flex; align-items:center; gap:.65rem; }
+    h2.section-title span.line{ flex:1; height:2px; background:linear-gradient(90deg,var(--tm-primary),transparent); display:inline-block; }
+
+    /* Print adjustments */
+    @media print {
+      body { background: white !important; }
+      #tm-app { max-width: none !important; margin: 0 !important; padding: 0 !important; }
+      #main-card { box-shadow: none !important; margin: 0 !important; background: white !important; }
+      .tabbar, #loading-overlay, .print-hide, #submit-report { display: none !important; }
+      .card { border: 1px solid #000 !important; }
+      .field { background: white !important; border: 1px solid #000 !important; }
+      textarea { overflow: visible !important; resize: none !important; }
+      button { display: none !important; }
+      .text-red-600 { color: #000 !important; }
+      .accent-text { color: #000 !important; }
+      .overflow-x-auto { overflow: visible !important; }
+      table { page-break-inside: avoid; }
+      tr { page-break-inside: avoid; }
+    }
+    /* EXTRA: Hide any host site (Weebly) headers/footers + brand header when printing */
+    @media print {
+      header, footer,
+      .site-header, .site-footer,
+      #header, #footer,
+      [class*="header"], [class*="Header"], [id*="header"],
+      [class*="footer"], [class*="Footer"], [id*="footer"],
+      .brand-header {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+      }
+    }
+  </style>
+</head>
+<body>
+<div id="tm-app" class="max-w-7xl mx-auto p-4 lg:p-8 space-y-6">
+
+  <!-- Corporate / Brand Header (repeated for professionalism) -->
+  <header class="brand-header print-block">
+    <img class="brand-logo" src="https://raw.githubusercontent.com/Iamatto01/TijarahMabrurLogo/82c731d4aeaf199e5ecde61afe64e8f932c57996/Main%20Logo.png" alt="TIJARAH MABRUR Logo" />
+    <div class="brand-meta">
+      <p class="font-semibold uppercase text-[0.55rem] tracking-wide m-0">HEADQUARTER</p>
+      <h1>TIJARAH MABRUR (M) SDN BHD</h1>
+      <p>F-6-8, SETAPAK COMMERCIAL CENTRE (STARPARC POINT)</p>
+      <p>JALAN TAMAN IBU KOTA, TAMAN DANAU KOTA</p>
+      <p>53100 SETAPAK, KUALA LUMPUR, MALAYSIA.</p>
+      <p>Reg No: 202201023780 (1469477-U)</p>
+      <p>Telephone: +603 41444035 &nbsp; | &nbsp; Mobile: +60 13 8881300</p>
+      <p>Email: admin@tijarahmabrur.my &nbsp; | &nbsp; Website: www.tijarahmabrur.my</p>
+      <p class="mt-1 font-semibold tracking-wide text-[0.55rem]">CONFIDENTIAL TECHNICAL SERVICE & CALIBRATION DOCUMENT</p>
+    </div>
+    <div class="brand-badge">
+      <span id="header-report-type">SERVICE REPORT</span>
+      <span id="header-serial">SERIAL –</span>
+    </div>
+  </header>
+
+  <!-- Tab Navigation -->
+  <div class="tabbar service-theme">
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <button data-type="service"        class="tab-btn active">Service<br>Report</button>
+      <button data-type="safety_valve"   class="tab-btn">Safety Valve<br>Calibration</button>
+      <button data-type="pressure_gauge" class="tab-btn">Pressure Gauge<br>Calibration</button>
+      <button data-type="uttm"           class="tab-btn">UTTM<br>Report</button>
+      <button data-type="hydrotest"      class="tab-btn">Hydrotest<br>Certificate</button>
+    </div>
+  </div>
+
+  <!-- Draft toolbar -->
+  <div class="card bg-white p-4 shadow flex flex-wrap items-center justify-between gap-4 print-hide">
+    <div class="flex items-center gap-3">
+      <label for="report-switcher" class="font-semibold text-sm">Current Draft:</label>
+      <select id="report-switcher" class="field w-56"></select>
+    </div>
+    <div class="flex gap-2">
+      <button type="button" id="export-pdf" class="px-4 py-2 rounded-lg accent-bg text-white text-xs font-semibold tracking-wide">Export PDF</button>
+      <button type="button" id="new-report" class="px-4 py-2 rounded-lg border text-xs font-semibold tracking-wide bg-white">New Draft</button>
+      <button type="button" id="delete-report" class="px-4 py-2 rounded-lg border text-xs font-semibold tracking-wide text-red-600 bg-white">Delete</button>
+    </div>
+  </div>
+
+  <!-- Main Content Card -->
+  <div id="main-card" class="card bg-white shadow p-6 sm:p-10 lg:p-12 space-y-14">
+
+    <!-- ================= SERVICE REPORT ================= -->
+    <section id="sr-section" class="space-y-10 print-block">
+      <h2 class="section-title accent-text">PMT SERVICE & MAINTENANCE REPORT <span class="line"></span></h2>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="lg:col-span-2 space-y-4">
+          <div class="font-semibold text-xs tracking-wide">CLIENT DETAIL</div>
+          <div class="space-y-3">
+            <div>
+              <label class="block text-[0.65rem] font-medium">Customer</label>
+              <input id="sr-client" class="field" placeholder="DAIKIN (M) SDN BHD">
+            </div>
+            <div>
+              <label class="block text-[0.65rem] font-medium">Address</label>
+              <textarea id="sr-address" rows="4" class="field" placeholder="Company address"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 content-start">
+          <div><label class="block text-[0.6rem] font-semibold">Report Date</label><input id="sr-reportdate" type="date" class="field"></div>
+          <div><label class="block text-[0.6rem] font-semibold">Report Number</label><input id="sr-reportno" class="field" placeholder="Auto/Manual"></div>
+          <div><label class="block text-[0.6rem] font-semibold">Service Date</label><input id="sr-servicedate" type="date" class="field"></div>
+          <div><label class="block text-[0.6rem] font-semibold">Service Type</label><input id="sr-servicetype" class="field" value="Service"></div>
+          <div><label class="block text-[0.6rem] font-semibold">Service Team</label><input id="sr-team" class="field" placeholder="Team"></div>
+            <div><label class="block text-[0.6rem] font-semibold">CF Expired Date</label><input id="sr-cfexpiry" class="field" value="N/A"></div>
+          <div class="col-span-2"><label class="block text-[0.6rem] font-semibold">Client Incharge</label><input id="sr-clientincharge" class="field" placeholder="PIC name"></div>
+        </div>
+      </div>
+
+      <div class="space-y-4">
+        <div class="font-semibold text-xs tracking-wide">UNIT DETAIL</div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="block text-[0.6rem] font-semibold">PMT No</label><input id="sr-pmtno" class="field" placeholder="PMT number"></div>
+            <div><label class="block text-[0.6rem] font-semibold">Manufacturer</label><input id="sr-mfg" class="field" placeholder="Manufacturer"></div>
+            <div><label class="block text-[0.6rem] font-semibold">Serial No</label><input id="sr-serialno" class="field" placeholder="Serial number"></div>
+            <div><label class="block text-[0.6rem] font-semibold">Year Built</label><input id="sr-yearbuilt" class="field" placeholder="YYYY"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="block text-[0.6rem] font-semibold">MAWP (Psi)</label><input id="sr-mawp" type="number" step="any" class="field" placeholder="150"></div>
+            <div><label class="block text-[0.6rem] font-semibold">Vessel Type</label><input id="sr-vesseltype" class="field" placeholder="Air Receiver"></div>
+            <div><label class="block text-[0.6rem] font-semibold">Safety Valve Size</label><input id="sr-svsize" class="field" placeholder='1/2"'></div>
+            <div><label class="block text-[0.6rem] font-semibold">Volume (Litre)</label><input id="sr-volume" type="number" step="any" class="field" placeholder="300"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="font-semibold text-xs tracking-wide">SCOPE OF MAINTENANCE</div>
+          <div class="flex gap-2 no-print">
+            <button type="button" id="sr-add-row" class="px-3 py-1 rounded border text-[0.65rem]">Add Item</button>
+            <button type="button" id="sr-clear-rows" class="px-3 py-1 rounded border text-[0.65rem] text-red-600">Clear</button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table id="sr-scope" class="tbl text-[0.65rem]">
+            <thead>
+              <tr><th class="p-2 text-left" style="width:2.2rem">#</th><th class="p-2 text-left">Description</th><th class="p-2 text-center" style="width:2.2rem">✓</th><th class="p-2 no-print" style="width:4rem"></th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <div class="font-semibold text-xs tracking-wide">COMMENTS & RECOMMENDATIONS</div>
+        <div class="overflow-x-auto">
+          <table id="sr-comments" class="tbl text-[0.65rem]">
+            <thead><tr><th class="p-2" style="width:2.2rem">#</th><th class="p-2 text-left">Comment</th></tr></thead>
+            <tbody>
+              <tr><td class="p-2">1</td><td class="p-1"><input class="field" value="Pull the safety valve regularly to avoid malfunction. Contact us promptly in the event of failure."></td></tr>
+              <tr><td class="p-2">2</td><td class="p-1"><input class="field" placeholder="Additional comment (optional)"></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="space-y-2 print-block">
+        <div class="font-semibold text-xs tracking-wide">SUMMARY</div>
+        <ul class="list-disc pl-5 text-[0.65rem] leading-4">
+          <li>Maintenance & services carried out successfully.</li>
+          <li>The entire service requirement has been followed accordingly.</li>
+          <li>This unit is ready for DOSH inspection for renewal certification.</li>
+          <li>Retain this report for records and reference.</li>
+        </ul>
+      </div>
+
+      <section class="space-y-4 print-block">
+        <h3 class="font-bold text-sm accent-text">Instrument Details</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div><label class="block text-[0.6rem] font-medium">Instrument Name</label><input id="iname" class="field" placeholder="Instrument name"></div>
+          <div><label class="block text-[0.6rem] font-medium">Manufacturer</label><input id="mfg" class="field" placeholder="Manufacturer"></div>
+          <div><label class="block text-[0.6rem] font-medium">Model / Range</label><input id="model" class="field" placeholder="Model / Range"></div>
+          <div><label class="block text-[0.6rem] font-medium">Serial / PMT</label><input id="instrumentSerial" class="field" placeholder="Serial / PMT"></div>
+          <div><label class="block text-[0.6rem] font-medium">Calibration Location</label><input id="location" class="field" placeholder="Location"></div>
+          <div><label class="block text-[0.6rem] font-medium">Received/Returned Condition</label><input id="conditions" class="field" placeholder="e.g. Good physical condition"></div>
+        </div>
+      </section>
+    </section>
+
+    <!-- ================= SAFETY VALVE ================= -->
+    <section id="sv-section" class="space-y-10 hidden print-block">
+      <h2 class="section-title accent-text">SAFETY VALVE CALIBRATION <span class="line"></span></h2>
+      <section class="space-y-4">
+        <h3 class="font-bold text-sm">Device Under Test (UUT)</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div><label class="block text-[0.6rem] font-medium">Instrument Name</label><input id="sv_iname" class="field" placeholder="Safety Valve"></div>
+          <div><label class="block text-[0.6rem] font-medium">Manufacturer</label><input id="sv_mfg" class="field" placeholder="Manufacturer"></div>
+          <div><label class="block text-[0.6rem] font-medium">Model / Range</label><input id="sv_model" class="field" placeholder="Model / Range"></div>
+          <div><label class="block text-[0.6rem] font-medium">Serial / PMT</label><input id="sv_serial" class="field" placeholder="Serial / PMT"></div>
+          <div><label class="block text-[0.6rem] font-medium">Calibration Location</label><input id="sv_location" class="field" placeholder="Location"></div>
+          <div><label class="block text-[0.6rem] font-medium">Received/Returned Condition</label><input id="sv_conditions" class="field" placeholder="Condition"></div>
+        </div>
+      </section>
+      <section class="space-y-4">
+        <h3 class="font-bold text-sm">Safety Valve Details</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div><label class="block text-[0.6rem] font-medium">Set Pressure</label><input id="sv-set" class="field" placeholder="150 psi"></div>
+          <div><label class="block text-[0.6rem] font-medium">Actual Pressure</label><input id="sv-actual" class="field" placeholder="148 psi"></div>
+        </div>
+      </section>
+      <section class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-sm">Master Instruments</h3>
+          <button type="button" id="sv-mi-add" class="px-3 py-1 rounded border text-[0.6rem] no-print">Add</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table id="sv-mi-table" class="tbl text-[0.6rem]">
+            <thead><tr><th class="p-2 text-left">Type</th><th class="p-2 text-left">Cert</th><th class="p-2 text-left">Serial</th><th class="p-2 text-left">Due</th><th class="p-2 text-left">Trace</th><th class="p-2 no-print"></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
+    <!-- ================= PRESSURE GAUGE ================= -->
+    <section id="pg-section" class="space-y-10 hidden print-block">
+      <h2 class="section-title accent-text">PRESSURE GAUGE CALIBRATION <span class="line"></span></h2>
+      <!-- Extended UUT -->
+      <section class="space-y-4">
+        <h3 class="font-semibold">DEVICE UNDER TEST (UUT)</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div><label class="block font-semibold text-[0.65rem]">Instrument Name</label><input id="pg_iname" class="field" placeholder=": Pressure Gauge"></div>
+          <div><label class="block font-semibold text-[0.65rem]">Manufacturer</label><input id="pg_mfg" class="field" placeholder=": WIKA"></div>
+
+          <div><label class="block font-semibold text-[0.65rem]">Model Range</label><input id="pg_model_range" class="field" placeholder=": (0 to 150) psi"></div>
+          <div><label class="block font-semibold text-[0.65rem]">Range</label><input id="pg_range" class="field" placeholder=": (0 to 150) psi"></div>
+
+            <div><label class="block font-semibold text-[0.65rem]">Serial Number / PMT</label><input id="pg_serial_pmt" class="field" placeholder=": SL PMT 42385"></div>
+          <div><label class="block font-semibold text-[0.65rem]">Factory Number</label><input id="pg_factory_no" class="field" placeholder=": Nil"></div>
+
+          <div><label class="block font-semibold text-[0.65rem]">References Number</label><input id="pg_ref_no" class="field" placeholder=": N/A"></div>
+          <div><label class="block font-semibold text-[0.65rem] font-medium">Id. Number</label><input id="pg_id_no" class="field" placeholder=": N/A"></div>
+
+          <div><label class="block font-semibold text-[0.65rem]">Received Condition</label><input id="pg_received_condition" class="field" placeholder=": Good Physical Condition"></div>
+          <div><label class="block font-semibold text-[0.65rem]">Returned Condition</label><input id="pg_returned_condition" class="field" placeholder=": Good Physical Condition"></div>
+
+          <div><label class="block font-semibold text-[0.65rem]">Calibration Location</label><input id="pg_cal_location" class="field" placeholder=": DAIKIN (M) SDN BHD"></div>
+          <div><label class="block font-semibold text-[0.65rem]">Calibration Date</label><input id="pg_cal_date" type="date" class="field"></div>
+
+          <div><label class="block font-semibold text-[0.65rem]">Due Date</label><input id="pg_due_date" type="date" class="field"></div>
+          <div><label class="block font-semibold text-[0.65rem]">Requested Due (specified by customer)</label><input id="pg_requested_due" class="field" placeholder=": (optional)"></div>
+
+          <div><label class="block font-semibold text-[0.65rem]">CERTIFICATE NUMBER</label><input id="pg_certificate_number" class="field" placeholder=": (auto/manual)"></div>
+          <div><label class="block font-semibold text-[0.65rem]">DATE OF ISSUE</label><input id="pg_date_of_issue" class="field" placeholder=": 30 JUL 2025"></div>
+          <div><label class="block font-semibold text-[0.65rem]">PAGE</label><input id="pg_page" class="field" placeholder=": 1 OF 2"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block font-semibold text-[0.65rem]">Environmental Condition</label>
+            <textarea id="pg_env_condition" rows="2" class="field" placeholder="Not applicable"></textarea>
+          </div>
+          <div class="grid grid-cols-2 gap-6">
+            <div>
+              <label class="block font-semibold text-[0.65rem]">Ambient Temperature</label>
+              <div class="grid grid-cols-2 gap-2">
+                <input id="pg_env_temp_min" class="field" placeholder="Min – Not applicable">
+                <input id="pg_env_temp_max" class="field" placeholder="Max – Not applicable">
+              </div>
+            </div>
+            <div>
+              <label class="block font-semibold text-[0.65rem]">Relative Humidity</label>
+              <div class="grid grid-cols-2 gap-2">
+                <input id="pg_env_rh_min" class="field" placeholder="Min – Not applicable">
+                <input id="pg_env_rh_max" class="field" placeholder="Max – Not applicable">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block font-semibold text-[0.65rem]">Calibration Procedure</label>
+            <input id="pg_cal_procedure" class="field" placeholder="TMCP STANDARD CALIBRATION PROCEDURE : TMSB/PG/0003">
+          </div>
+          <div>
+            <label class="block font-semibold text-[0.65rem]">Remarks</label>
+            <input id="pg_remarks" class="field" placeholder=": The results given in this certificate only relate to the values measured...">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-[0.65rem]">Calibration Standard(s) Used</label>
+          <textarea id="pg_standards_used" rows="3" class="field" placeholder="Calibration was performed using the comparison method between a traceable master instrument and the unit under test (UUT). Readings were taken at specified test points and the deviation was recorded."></textarea>
+        </div>
+        <p class="text-[0.55rem] text-gray-600">User should be aware instrument may drift before the stated interval.</p>
+      </section>
+
+      <!-- Master Instruments -->
+      <section class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold text-sm">Master Instruments</h3>
+          <button type="button" id="pg-mi-add" class="px-3 py-1 rounded border text-[0.6rem] no-print">Add</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table id="pg-mi-table" class="tbl text-[0.6rem]">
+            <thead>
+            <tr><th class="p-2 text-left">Type</th><th class="p-2 text-left">Cert</th><th class="p-2 text-left">Serial</th><th class="p-2 text-left">Due</th><th class="p-2 text-left">Trace</th><th class="p-2 no-print"></th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Calibration Results (fixed) -->
+      <section class="space-y-4">
+        <h3 class="font-semibold text-sm">Calibration Results (Pressure Gauge)</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-6">
+          <div><label class="block font-semibold text-[0.6rem]">FS (Full Scale)</label><input id="fs" type="number" min="0" step="any" class="field" placeholder="150"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Unit</label><input id="unit" class="field" placeholder="psi / bar / kPa"></div>
+          <div>
+            <label class="block font-semibold text-[0.6rem]">Tolerance</label>
+            <div class="mt-2 flex gap-2 items-center">
+              <input id="tol-val" type="number" step="any" class="field w-24" placeholder="1">
+              <select id="tol-type" class="field"><option value="percent">% FS</option><option value="abs">Absolute</option></select>
+            </div>
+            <p id="tol-preview" class="text-[0.55rem] text-gray-500 mt-1"></p>
+          </div>
+          <div class="flex items-end"><div class="text-[0.6rem]">Overall:&nbsp;<span id="overall" class="badge inline-flex px-2 py-1 rounded bg-gray-400">PENDING</span></div></div>
+        </div>
+        <div class="overflow-x-auto">
+          <table id="res-table" class="tbl text-[0.6rem]">
+            <thead>
+            <tr><th class="p-2 text-left">Applied</th><th class="p-2 text-left">Inc Reading</th><th class="p-2 text-left">Err (Inc)</th><th class="p-2 text-left">Dec Reading</th><th class="p-2 text-left">Err (Dec)</th><th class="p-2 text-left">Tolerance</th><th class="p-2 text-left">Result</th></tr>
+            </thead>
+            <tbody id="res-tbody"></tbody>
+          </table>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-4">
+          <div><label class="block font-semibold text-[0.6rem]">Resolution</label><input id="resolution" class="field" placeholder="1 psi"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Readability</label><input id="readability" class="field" placeholder="1 psi"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Specification</label><input id="spec" class="field" placeholder="Manufacturer spec"></div>
+        </div>
+      </section>
+    </section>
+
+    <!-- ================= UTTM ================= -->
+    <section id="uttm-section" class="space-y-10 hidden print-block">
+      <h2 class="section-title accent-text">ULTRASONIC THICKNESS (UTTM) REPORT <span class="line"></span></h2>
+      <!-- Project / client -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div>
+          <label class="block font-semibold text-[0.6rem]">Project</label>
+          <input id="utProject" class="field" value="CF Renewal" placeholder="Project">
+        </div>
+        <div>
+          <label class="block font-semibold text-[0.6rem]">Report No</label>
+          <input id="utReportNo" class="field" placeholder="UTTM/25/DAIKIN/AT/02">
+        </div>
+        <div>
+          <label class="block font-semibold text-[0.6rem]">Date of Inspection</label>
+          <input id="utDate" type="date" class="field">
+        </div>
+        <div>
+          <label class="block font-semibold text-[0.6rem]">Client</label>
+          <input id="utClient" class="field" placeholder="DAIKIN Malaysia Sdn Bhd">
+        </div>
+        <div>
+          <label class="block font-semibold text-[0.6rem]">Procedure No</label>
+          <input id="utProcedureNo" class="field" placeholder="UT/Proc/01">
+        </div>
+        <div class="md:col-span-3">
+          <label class="block font-semibold text-[0.6rem]">Site Location</label>
+          <textarea id="utSiteLocation" rows="2" class="field" placeholder="Address"></textarea>
+        </div>
+      </div>
+      <!-- Equipment details -->
+      <div>
+        <div class="mb-2 font-semibold text-[0.65rem]">Equipment Details</div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div><label class="block font-semibold text-[0.6rem]">Manufacturer</label><input id="utManufacturer" class="field" value="Krautkramer" placeholder="Krautkramer"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Model</label><input id="utModel" class="field" value="DMS2" placeholder="DMS2"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Serial Number</label><input id="utSerialNumber" class="field" value="01206N" placeholder="01206N"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Couplant used</label><input id="utCouplant" class="field" value="Sonagel & paste" placeholder="Sonagel & paste"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Calibration Block</label><input id="utCalBlock" class="field" value="Step wedge & V2" placeholder="Step wedge & V2"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Gain reference level</label><input id="utGainRef" class="field" value="1st Echo FSH 80%" placeholder="1st Echo FSH 80%"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Test Range</label><input id="utTestRange" class="field" value="25 mm" placeholder="25 mm"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Reject setting</label><input id="utReject" class="field" value="OFF" placeholder="OFF"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Probe Used</label><input id="utProbe" class="field" value="HT400A" placeholder="HT400A"></div>
+        </div>
+      </div>
+      <!-- Specimen / Item inspected -->
+      <div>
+        <div class="mb-2 font-semibold text-[0.65rem]">Specimen / Item Inspected</div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div><label class="block font-semibold text-[0.6rem]">Type of Item</label><input id="utTypeOfItem" class="field" value="Adsorption tower" placeholder="Adsorption tower"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Item Identification</label><input id="utItemId" class="field" placeholder="SL PMT 42397"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Material</label><input id="utMaterial" class="field" value="A 516 Gr 60" placeholder="A 516 Gr 60"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Design Pressure (psi)</label><input id="utDesignPressure" type="number" step="any" class="field" value="174" placeholder="174"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Surface Condition</label><input id="utSurface" class="field" value="Smooth" placeholder="Smooth"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Outside Diameter (inch)</label><input id="utOD" type="number" step="any" class="field" value="29.281" placeholder="29.281"></div>
+        </div>
+      </div>
+      <!-- RESULT table -->
+      <div>
+        <div class="font-semibold mb-2 text-[0.65rem]">RESULT</div>
+        <div class="overflow-x-auto">
+          <table class="tbl text-[0.6rem]">
+            <thead>
+              <tr>
+                <th class="p-2 text-left">Location / Direction</th>
+                <th class="p-2 text-center">0°</th>
+                <th class="p-2 text-center">90°</th>
+                <th class="p-2 text-center">180°</th>
+                <th class="p-2 text-center">270°</th>
+                <th class="p-2 text-center">Minimum thickness</th>
+                <th class="p-2 text-center">Required Thickness</th>
+                <th class="p-2 text-left">Remarks</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="p-2 font-medium">Top Head</td>
+                <td class="p-1 text-center bg-gray-100">—</td>
+                <td class="p-1 text-center bg-gray-100">—</td>
+                <td class="p-1 text-center bg-gray-100">—</td>
+                <td class="p-1 text-center bg-gray-100">—</td>
+                <td class="p-1 text-center bg-gray-100">—</td>
+                <td class="p-1 text-center bg-gray-100">—</td>
+                <td class="p-1"><input id="utHeadTopRemark" class="field" value="Acceptable" placeholder="Acceptable"></td>
+              </tr>
+              <tr>
+                <td class="p-2 font-medium">Bottom Head</td>
+                <td class="p-1 text-center bg-gray-100">—</td>
+                <td class="p-1 text-center bg-gray-100">—</td>
+                <td class="p-1 text-center bg-gray-100">—</td>
+                <td class="p-1 text-center bg-gray-100">—</td>
+                <td class="p-1 text-center bg-gray-100">—</td>
+                <td class="p-1 text-center bg-gray-100">—</td>
+                <td class="p-1"><input id="utHeadBottomRemark" class="field" value="Acceptable" placeholder="Acceptable"></td>
+              </tr>
+              <tr>
+                <td class="p-2 font-medium">Shell 1</td>
+                <td class="p-1"><input id="utS1_0" class="field" type="number" step="any"></td>
+                <td class="p-1"><input id="utS1_90" class="field" type="number" step="any"></td>
+                <td class="p-1"><input id="utS1_180" class="field" type="number" step="any"></td>
+                <td class="p-1"><input id="utS1_270" class="field" type="number" step="any"></td>
+                <td class="p-1"><input id="utS1_min" class="field" readonly></td>
+                <td class="p-1" rowspan="3"><input id="utReqThk" class="field" type="number" step="any" placeholder="Required thickness (mm)"></td>
+                <td class="p-1"><input id="utS1_rem" class="field" placeholder="Acceptable"></td>
+              </tr>
+              <tr>
+                <td class="p-2 font-medium">Shell 2</td>
+                <td class="p-1"><input id="utS2_0" class="field" type="number" step="any"></td>
+                <td class="p-1"><input id="utS2_90" class="field" type="number" step="any"></td>
+                <td class="p-1"><input id="utS2_180" class="field" type="number" step="any"></td>
+                <td class="p-1"><input id="utS2_270" class="field" type="number" step="any"></td>
+                <td class="p-1"><input id="utS2_min" class="field" readonly></td>
+                <td class="p-1"><input id="utS2_rem" class="field" placeholder="Acceptable"></td>
+              </tr>
+              <tr>
+                <td class="p-2 font-medium">Shell 3</td>
+                <td class="p-1"><input id="utS3_0" class="field" type="number" step="any"></td>
+                <td class="p-1"><input id="utS3_90" class="field" type="number" step="any"></td>
+                <td class="p-1"><input id="utS3_180" class="field" type="number" step="any"></td>
+                <td class="p-1"><input id="utS3_270" class="field" type="number" step="any"></td>
+                <td class="p-1"><input id="utS3_min" class="field" readonly></td>
+                <td class="p-1"><input id="utS3_rem" class="field" placeholder="Acceptable"></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <!-- Result & Conclusion -->
+      <div>
+        <div class="font-semibold mb-1 text-[0.65rem]">Result & Conclusion</div>
+        <textarea id="utConclusion" rows="3" class="field" placeholder="Auto summary when data complete"></textarea>
+      </div>
+      <!-- CALCULATION OF PRESSURE VESSEL DESIGN -->
+      <div>
+        <h3 class="font-extrabold mb-2 text-[0.7rem]">CALCULATION OF PRESSURE VESSEL DESIGN</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div><label class="block font-semibold text-[0.6rem]">Design Temp (°C)</label><input id="utDesignTempC" type="number" step="any" class="field" value="150"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Allowable Stress (Shell) psi</label><input id="utStressShell" type="number" step="any" class="field" value="20000"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Allowable Stress (Head) psi</label><input id="utStressHead" type="number" step="any" class="field" value="20000"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Joint Efficiency, E</label><input id="utJointEff" type="number" step="any" class="field" value="0.7"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Corrosion Allowance (inch)</label><input id="utCA" type="number" step="any" class="field" value="0"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
+          <div><label class="block font-semibold text-[0.6rem]">t = PR/(SE+0.4P) + C (inch)</label><input id="ut_t_in" class="field" readonly></div>
+          <div><label class="block font-semibold text-[0.6rem]">t (mm)</label><input id="ut_t_mm" class="field" readonly></div>
+          <div><label class="block font-semibold text-[0.6rem]">Minimum current thickness (mm)</label><input id="utMinCurrent" class="field" readonly></div>
+        </div>
+        <div class="mt-2 text-[0.65rem]"><span class="font-semibold">Shell thickness is</span> <span id="utAcceptTag" class="badge inline-flex px-2 py-1 rounded bg-gray-400">PENDING</span></div>
+      </div>
+      <!-- CORROSION RATES & REMAINING LIFE -->
+      <div>
+        <h3 class="font-extrabold mb-2 text-[0.7rem]">CORROSION RATES & REMAINING LIFE</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div><label class="block font-semibold text-[0.6rem]">Initial thickness T<sub>initial</sub> (mm)</label><input id="utTinitial" type="number" step="any" class="field"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Actual now T<sub>actual</sub> (mm)</label><input id="utTactual" type="number" step="any" class="field"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Time since initial (years)</label><input id="utYears" type="number" step="any" class="field" value="1"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Corrosion Rate, CR (mm/year)</label><input id="utCR" class="field" readonly></div>
+          <div><label class="block font-semibold text-[0.6rem]">Remaining life, RL (years)</label><input id="utRL" class="field" readonly></div>
+          <div><label class="block font-semibold text-[0.6rem]">Interval inspection (years)</label><input id="utInterval" type="number" step="any" class="field" value="10"></div>
+          <div class="md:col-span-3"><label class="block font-semibold text-[0.6rem]">Prepared by</label><input id="utPreparedBy" class="field"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= HYDROTEST ================= -->
+    <section id="ht-section" class="space-y-10 hidden print-block">
+      <h2 class="section-title accent-text">HYDROTEST CERTIFICATE <span class="line"></span></h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label class="block font-semibold text-[0.6rem]">Customer</label>
+          <input id="ht-customer" class="field" placeholder="ELITE MATERIAL CO. LTD">
+        </div>
+        <div>
+          <label class="block font-semibold text-[0.6rem]">Project</label>
+          <input id="ht-project" class="field" placeholder="HYDROSTATIC TEST">
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label class="block font-semibold text-[0.6rem]">Tank Serial No</label>
+          <input id="ht-tank-serial" class="field" placeholder="V315179">
+        </div>
+        <div>
+          <label class="block font-semibold text-[0.6rem]">Test Location</label>
+          <textarea id="ht-test-location" class="field" placeholder="Plot 39 Lorong PSPN 16 Penang Science Park North Simpang Ampat, Pulau Pinang, 14100 Malaysia"></textarea>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div>
+          <label class="block font-semibold text-[0.6rem]">Design Code</label>
+          <input id="ht-design-code" class="field" placeholder="ASME SECTION 8, DIVISION 1">
+        </div>
+        <div>
+          <label class="block font-semibold text-[0.6rem]">Drawing Ref No.</label>
+          <input id="ht-drawing-ref" class="field" placeholder="093W69353G00">
+        </div>
+        <div>
+          <label class="block font-semibold text-[0.6rem]">Approval No.</label>
+          <input id="ht-approval-no" class="field" placeholder="JKKP/2025/01-05/T-01/00149">
+        </div>
+      </div>
+      <div class="space-y-4">
+        <h3 class="text-sm font-bold">1.0 Test Pressure Detail</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div><label class="block font-semibold text-[0.6rem]">1.1 Test Date</label><input id="ht-test-date" type="date" class="field"></div>
+          <div><label class="block font-semibold text-[0.6rem]">1.2 Design Pressure (Barg / PSI)</label><input id="ht-design-pressure" class="field" placeholder="10.5 Barg"></div>
+          <div><label class="block font-semibold text-[0.6rem]">1.3 Shop Test Pressure (Barg / PSI)</label><input id="ht-shop-pressure" class="field" placeholder="13.5 barg 200 PSI"></div>
+          <div><label class="block font-semibold text-[0.6rem]">1.4 Holding Time (Hour / Minutes)</label><input id="ht-holding-time" class="field" placeholder="30 MINUTES"></div>
+          <div><label class="block font-semibold text-[0.6rem]">1.5 Holding Time (Start / Finish)</label><input id="ht-holding-period" class="field" placeholder="2 pm - 2.30 pm"></div>
+        </div>
+      </div>
+      <div class="space-y-4">
+        <h3 class="text-sm font-bold">2.0 Results</h3>
+        <div><textarea id="ht-results" class="field" placeholder="NO LEAK DETECTED. RESULT SATISFACTORY"></textarea></div>
+      </div>
+      <div class="space-y-4">
+        <h3 class="text-sm font-bold">3.0 Pressure Gauge and Pressure Recorder</h3>
+        <div class="overflow-x-auto">
+          <table class="tbl text-[0.6rem]">
+            <thead>
+              <tr class="bg-gray-50">
+                <th class="p-2">Serial No.</th>
+                <th class="p-2">Certificate No.</th>
+                <th class="p-2">Date Calibrated</th>
+                <th class="p-2">Expiry Date</th>
+                <th class="p-2">Remarks</th>
+                <th class="p-2 no-print">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="ht-gauge-rows">
+              <tr>
+                <td class="p-2"><input class="field ht-gauge-serial" placeholder="PRA210305"></td>
+                <td class="p-2"><input class="field ht-gauge-cert" placeholder="PR2500287-3"></td>
+                <td class="p-2"><input type="date" class="field ht-gauge-cal-date"></td>
+                <td class="p-2"><input type="date" class="field ht-gauge-exp-date"></td>
+                <td class="p-2"><input class="field ht-gauge-remarks"></td>
+                <td class="p-2 no-print"><button type="button" onclick="removeRow(this)" class="text-red-600 hover:text-red-800 text-[0.55rem]">Remove</button></td>
+              </tr>
+            </tbody>
+          </table>
+          <button type="button" onclick="addHtGaugeRow()" class="mt-2 px-3 py-1 bg-blue-500 text-white rounded text-[0.6rem] no-print">Add Row</button>
+        </div>
+      </div>
+      <div class="space-y-4">
+        <h3 class="text-sm font-bold">4.0 Specification of Medium</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div><label class="block font-semibold text-[0.6rem]">4.1 Type</label><input id="ht-medium-type" class="field" placeholder="WATER"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Chloride Content</label><input id="ht-chloride" class="field" placeholder="<O.O1"></div>
+          <div><label class="block font-semibold text-[0.6rem]">pH</label><input id="ht-ph" class="field" placeholder="5.6"></div>
+        </div>
+      </div>
+      <div class="space-y-4">
+        <h3 class="text-sm font-bold">5.0 Temperature Record</h3>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div><label class="block font-semibold text-[0.6rem]">Min Psig (°C)</label><input id="ht-temp-min" class="field" placeholder="N/A"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Result</label><input id="ht-temp-result" class="field" placeholder="Not applicable"></div>
+        </div>
+      </div>
+      <div class="space-y-4">
+        <h3 class="text-sm font-bold">6.0 Remarks</h3>
+        <div><textarea id="ht-remarks" class="field" placeholder="We certify that the above equipment has been tested satisfactory as per requirements of the applicable codes and specification."></textarea></div>
+      </div>
+      <div class="space-y-4">
+        <h3 class="text-sm font-bold">Inspection Team</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div><label class="block font-semibold text-[0.6rem]">Inspected by</label><input id="ht-inspected-by" class="field" placeholder="Mohd Shahrul Azrie Bin Mat Seman"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Verified by</label><input id="ht-verified-by" class="field" placeholder="Mohd Syukri Yusof"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Witnessed by</label><input id="ht-witnessed-by" class="field" placeholder="(Name, Sign & Stamp)"></div>
+        </div>
+      </div>
+      <div class="space-y-4">
+        <h3 class="text-sm font-bold">Device Under Test (UUT) Details</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div><label class="block font-semibold text-[0.6rem]">Instrument Name</label><input id="ht_iname" class="field" placeholder="Pressure Vessel"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Manufacturer</label><input id="ht_mfg" class="field" placeholder="Various"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Model / Range</label><input id="ht_model" class="field" placeholder="Tank Model"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Serial / PMT</label><input id="ht_serial" class="field" placeholder="Tank Serial Number"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Test Location</label><input id="ht_location" class="field" placeholder="Test Site Location"></div>
+          <div><label class="block font-semibold text-[0.6rem]">Conditions</label><input id="ht_conditions" class="field" placeholder="Test Conditions"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= ATTACHMENTS ================= -->
+    <section class="space-y-5 print-block">
+      <h2 class="section-title">Attachments <span class="line"></span></h2>
+      <p class="text-[0.6rem] leading-4 text-slate-600">Attach supporting evidence (images, calibration screens, thickness readings, certificates, etc.). PDF attachments will be listed; images will be rendered as thumbnails. All attachments persist per draft and will be embedded (Base64) when submitting.</p>
+      <div class="flex flex-wrap gap-3 items-center no-print">
+        <input type="file" id="add-attachments" multiple accept="image/*,application/pdf" class="hidden">
+        <label id="add-attachments-btn" for="add-attachments" class="px-4 py-2 rounded-lg border bg-white text-xs font-semibold cursor-pointer hover:bg-slate-50">Add Files</label>
+        <button type="button" id="clear-attachments" class="px-4 py-2 rounded-lg border text-xs font-semibold text-red-600 bg-white hover:bg-red-50">Clear All</button>
+      </div>
+      <div id="attachments-preview" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"></div>
+      <div id="attachments-pdf-list" class="space-y-1"></div>
+    </section>
+
+    <!-- ================= SUMMARY NOTES ================= -->
+    <section class="space-y-3 print-block">
+      <h2 class="section-title">General Notes / Summary <span class="line"></span></h2>
+      <textarea id="service-notes" rows="5" class="field" placeholder="Summary notes, overall remarks, limitations, client instructions, safety observations, corrective actions recommended, etc."></textarea>
+    </section>
+
+    <div class="flex justify-end pt-2 print-hide">
+      <button id="submit-report" class="px-5 py-2 rounded-lg accent-bg">Submit Report</button>
+    </div>
+  </div>
+
+  <!-- Loading overlay -->
+  <div id="loading-overlay" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-50">
+    <div class="bg-white p-8 rounded-xl shadow-xl text-center w-full max-w-sm">
+      <svg class="animate-spin h-10 w-10 text-blue-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+      <p id="loading-text" class="mt-5 font-semibold text-sm">Submitting…</p>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ========= Utility shortcuts ========= */
+const $  = (s,p=document)=>p.querySelector(s);
+const $$ = (s,p=document)=>Array.from(p.querySelectorAll(s));
+
+/* ========= Constants ========= */
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyJZ1AruTD9cCafGzcwVVVNzQhn2pPuX2mjqo55zT2xn7hQj3zGZMGaRG6U2ELeWCTw/exec';
+const themes = { service:'#2563eb', safety_valve:'#dc2626', pressure_gauge:'#059669', uttm:'#d97706', hydrotest:'#7c3aed' };
+const info   = { service:{abbr:'SR', label:'SERVICE REPORT'}, safety_valve:{abbr:'SV', label:'SAFETY VALVE CALIBRATION'}, pressure_gauge:{abbr:'PG', label:'PRESSURE GAUGE CALIBRATION'}, uttm:{abbr:'UTTM', label:'UTTM REPORT'}, hydrotest:{abbr:'HT', label:'HYDROTEST CERTIFICATE'} };
+
+/* ========= IndexedDB for drafts ========= */
+class DB{
+  constructor(){ this.db=null; }
+  open(){ return new Promise((res,rej)=>{ const r=indexedDB.open('tm_reports_full_v5',1); r.onerror=()=>rej(); r.onsuccess=()=>{this.db=r.result; res();}; r.onupgradeneeded=e=>{ const db=e.target.result; if(!db.objectStoreNames.contains('reports')) db.createObjectStore('reports',{keyPath:'id'}); }; }); }
+  store(m){ return this.db.transaction('reports',m).objectStore('reports'); }
+  all(){ return new Promise(r=>this.store('readonly').getAll().onsuccess=e=>r(e.target.result)); }
+  put(x){ return new Promise(r=>this.store('readwrite').put(x).onsuccess=r); }
+  del(id){ return new Promise(r=>this.store('readwrite').delete(id).onsuccess=r); }
+}
+const db=new DB();
+
+/* ========= State ========= */
+let currentType='service', currentId=null; 
+let buckets={service:[],safety_valve:[],pressure_gauge:[],uttm:[],hydrotest:[]};
+
+function toISO(d){ return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().split('T')[0]; }
+function setTheme(t){ document.documentElement.style.setProperty('--tm-primary', themes[t]||'#2563eb'); const tabbar=$('.tabbar'); tabbar.className=tabbar.className.replace(/(service|safety_valve|pressure_gauge|uttm|hydrotest)-theme/g,''); tabbar.classList.add(t+'-theme'); }
+function switcherLabel(r){ if(!r||!r.fields) return 'Draft'; return r.fields.serial || r.fields.instrumentSerial || r.fields.pg_serial_pmt || r.fields.utItemId || 'Draft'; }
+function showHide(){ $('#sr-section').classList.toggle('hidden', currentType!=='service'); $('#sv-section').classList.toggle('hidden', currentType!=='safety_valve'); $('#pg-section').classList.toggle('hidden', currentType!=='pressure_gauge'); $('#uttm-section').classList.toggle('hidden', currentType!=='uttm'); $('#ht-section').classList.toggle('hidden', currentType!=='hydrotest'); }
+function fillSwitcher(){ const sel=$('#report-switcher'); sel.innerHTML=''; const list=buckets[currentType]||[]; list.sort((a,b)=>b.id.localeCompare(a.id)); list.forEach(r=>{ const o=document.createElement('option'); o.value=r.id; o.textContent=switcherLabel(r); sel.appendChild(o); }); }
+function updateHeaderMeta(){ const r=buckets[currentType].find(x=>x.id===currentId); $('#header-report-type').textContent=info[currentType].label; $('#header-serial').textContent=r && r.fields.serial? r.fields.serial : 'SERIAL –'; }
+
+/* ========= Draft creation ========= */
+async function createDraft(){
+  const now=new Date(), yy=String(now.getFullYear()).slice(-2), abbr=info[currentType].abbr;
+  const key='tm_seq_'+currentType; let n=parseInt(localStorage.getItem(key)||'0')+1; localStorage.setItem(key,n);
+  const serial=`${abbr}/${yy}/${n}`; const id=Date.now().toString();
+  const SCOPE_DEFAULT=[
+    "External physical condition service: Cleaning all visible dirt, grease, dust, etc (as practicable).",
+    "Internal vessel service: Clean contaminants (oil, water, impurities) & check internal corrosion.",
+    "Safety valve functional test & calibration check per TMSB procedure.",
+    "Draining valve: Verify operation & effective drainage.",
+    "Pressure gauge: Zero at depressurized state; marking at MAWP; calibration check.",
+    "Testing & commissioning: Run system verifying proper operation.",
+    "OPTIONAL: Ultrasonic Thickness (UTTM) additional assessment."
+  ];
+  const srScopeInit=SCOPE_DEFAULT.map((t,i)=>({no:i+1,text:t,checked:i!==6}));
+  const pgRows=Array.from({length:10}).map(()=>({applied:'',inc:'',dec:''}));
+  const r={ id, type:currentType, fields:{serial, issue:toISO(now), caldate:toISO(now)}, mi:[], rows:pgRows, srScope:srScopeInit, srComments:[
+    "Pull the safety valve regularly to avoid malfunction. Contact us promptly in the event of failure.", ""
+  ], attachments:[] };
+  buckets[currentType].unshift(r); await db.put(r); loadDraft(id); fillSwitcher(); }
+
+/* ========= Save Draft ========= */
+function saveDraft(){ clearTimeout(saveDraft._t); saveDraft._t=setTimeout(async ()=>{ const r=buckets[currentType].find(x=>x.id===currentId); if(!r) return; const ids=[
+  'sr-client','sr-address','sr-reportdate','sr-reportno','sr-servicedate','sr-servicetype','sr-team','sr-cfexpiry','sr-clientincharge','sr-pmtno','sr-mfg','sr-serialno','sr-yearbuilt','sr-mawp','sr-vesseltype','sr-svsize','sr-volume','iname','mfg','model','instrumentSerial','location','conditions',
+  'sv_iname','sv_mfg','sv_model','sv_serial','sv_location','sv_conditions','sv-set','sv-actual',
+  'pg_iname','pg_mfg','pg_model_range','pg_range','pg_serial_pmt','pg_factory_no','pg_ref_no','pg_id_no','pg_received_condition','pg_returned_condition','pg_cal_location','pg_cal_date','pg_due_date','pg_requested_due','pg_certificate_number','pg_date_of_issue','pg_page','pg_env_condition','pg_env_temp_min','pg_env_temp_max','pg_env_rh_min','pg_env_rh_max','pg_cal_procedure','pg_remarks','pg_standards_used','fs','unit','tol-val','tol-type','resolution','readability','spec',
+  'utProject','utReportNo','utDate','utClient','utProcedureNo','utSiteLocation','utManufacturer','utModel','utSerialNumber','utCouplant','utCalBlock','utGainRef','utTestRange','utReject','utProbe','utTypeOfItem','utItemId','utMaterial','utDesignPressure','utSurface','utOD','utS1_0','utS1_90','utS1_180','utS1_270','utS1_min','utS1_rem','utS2_0','utS2_90','utS2_180','utS2_270','utS2_min','utS2_rem','utS3_0','utS3_90','utS3_180','utS3_270','utS3_min','utS3_rem','utReqThk','utConclusion','utDesignTempC','utStressShell','utStressHead','utJointEff','utCA','ut_t_in','ut_t_mm','utMinCurrent','utTinitial','utTactual','utYears','utCR','utRL','utInterval','utPreparedBy','service-notes'
+]; const preserved={serial:r.fields.serial, issue:r.fields.issue, caldate:r.fields.caldate}; r.fields={}; ids.forEach(id=>{ const el=$('#'+id); if(el) r.fields[id]=el.value; }); Object.assign(r.fields,preserved); r.srScope=[]; $$('#sr-scope tbody tr').forEach(tr=>{ r.srScope.push({no:parseInt(tr.dataset.no,10), text:$('.sr-text',tr).value, checked:$('.sr-ok',tr).checked}); }); r.srComments=$$('#sr-comments tbody input').map(i=>i.value||''); if(currentType==='safety_valve'){ r.mi=[]; $$('#sv-mi-table tbody tr').forEach(tr=>{ const I=$$('input',tr); r.mi.push({type:I[0].value,cert:I[1].value,serial:I[2].value,due:I[3].value,trace:I[4].value}); }); }
+if(currentType==='pressure_gauge'){ r.mi=[]; $$('#pg-mi-table tbody tr').forEach(tr=>{ const I=$$('input',tr); r.mi.push({type:I[0].value,cert:I[1].value,serial:I[2].value,due:I[3].value,trace:I[4].value}); }); r.rows=[]; $$('#res-tbody tr').forEach(tr=>{ r.rows.push({ applied:$('.applied',tr).value, inc:$('.inc',tr).value, dec:$('.dec',tr).value }); }); }
+await db.put(r); const opt=$('#report-switcher').querySelector(`option[value="${currentId}"]`); if(opt) opt.textContent=switcherLabel(r); updateHeaderMeta(); },200); }
+
+/* ========= Load Draft ========= */
+function loadDraft(id){ const r=buckets[currentType].find(x=>x.id===id); if(!r) return; currentId=id; $('#report-switcher').value=id; Object.entries(r.fields||{}).forEach(([k,v])=>{ const el=$('#'+k); if(el) el.value=v; }); // SR scope
+const tbody=$('#sr-scope tbody'); if(tbody){ tbody.innerHTML=''; (r.srScope||[]).forEach(row=>addSrScopeRow(row.no,row.text,row.checked)); }
+const cInputs=$$('#sr-comments tbody input'); (r.srComments||[]).forEach((val,i)=>{ if(cInputs[i]) cInputs[i].value=val; }); const svBody=$('#sv-mi-table tbody'); if(svBody){ svBody.innerHTML=''; (r.mi||[]).forEach(addSvMiRow); }
+const pgBody=$('#pg-mi-table tbody'); if(pgBody){ pgBody.innerHTML=''; (r.mi||[]).forEach(addPgMiRow); } setupFixedPgRows(r.rows||[]); // Attachments
+renderAttachments(r.attachments||[]); evaluateAll(); utRecalcAll(); showHide(); updateHeaderMeta(); }
+
+/* ========= Tabs ========= */
+function setType(t){ if(currentType===t) return; currentType=t; setTheme(t); $$('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.type===t)); fillSwitcher(); if(buckets[t].length) loadDraft(buckets[t][0].id); else createDraft(); }
+$$('.tab-btn').forEach(btn=>btn.addEventListener('click',()=>setType(btn.dataset.type)));
+
+/* ========= SR Scope ========= */
+function autoResizeTextarea(el){ el.style.height='auto'; el.style.height=Math.max(el.scrollHeight,40)+"px"; }
+function addSrScopeRow(no,text,checked){ const tr=document.createElement('tr'); tr.dataset.no=no; tr.innerHTML=`<td class="p-2">${no}</td><td class="p-1"><textarea class="field sr-text w-full" rows="2" placeholder="Describe item">${text||''}</textarea></td><td class="p-1 text-center"><input type="checkbox" class="sr-ok" ${checked?'checked':''}></td><td class="p-1 text-right no-print"><button type="button" class="px-2 py-1 rounded border text-red-600 sr-del text-[0.55rem]">Remove</button></td>`; $('#sr-scope tbody').appendChild(tr); const ta=tr.querySelector('.sr-text'); autoResizeTextarea(ta); ta.addEventListener('input',()=>{autoResizeTextarea(ta); saveDraft();}); tr.querySelector('.sr-ok').addEventListener('change', saveDraft); tr.querySelector('.sr-del').addEventListener('click',()=>{ tr.remove(); $$('#sr-scope tbody tr').forEach((r,i)=>r.dataset.no=i+1); saveDraft(); }); }
+$('#sr-add-row').addEventListener('click',()=>{ addSrScopeRow($$('#sr-scope tbody tr').length+1,'',false); saveDraft(); });
+$('#sr-clear-rows').addEventListener('click',()=>{ if(!confirm('Clear all scope rows?')) return; $('#sr-scope tbody').innerHTML=''; saveDraft(); });
+
+/* ========= Master Instruments (SV/PG) ========= */
+function addSvMiRow(d={}){ const tr=document.createElement('tr'); tr.innerHTML=`<td class="p-1"><input class="field" placeholder="Type" value="${d.type||''}"></td><td class="p-1"><input class="field" placeholder="Cert" value="${d.cert||''}"></td><td class="p-1"><input class="field" placeholder="Serial" value="${d.serial||''}"></td><td class="p-1"><input class="field" type="date" value="${d.due||''}"></td><td class="p-1"><input class="field" placeholder="Trace" value="${d.trace||''}"></td><td class="p-1 text-right no-print"><button type="button" class="px-2 py-1 rounded border text-red-600 text-[0.55rem]">Remove</button></td>`; $('#sv-mi-table tbody').appendChild(tr); tr.querySelector('button').addEventListener('click',()=>{ tr.remove(); saveDraft(); }); $$('input',tr).forEach(i=>i.addEventListener('input', saveDraft)); }
+$('#sv-mi-add').addEventListener('click',()=>{ addSvMiRow({}); saveDraft(); });
+function addPgMiRow(d={}){ const tr=document.createElement('tr'); tr.innerHTML=`<td class="p-1"><input class="field" placeholder="Type" value="${d.type||''}"></td><td class="p-1"><input class="field" placeholder="Cert" value="${d.cert||''}"></td><td class="p-1"><input class="field" placeholder="Serial" value="${d.serial||''}"></td><td class="p-1"><input class="field" type="date" value="${d.due||''}"></td><td class="p-1"><input class="field" placeholder="Trace" value="${d.trace||''}"></td><td class="p-1 text-right no-print"><button type="button" class="px-2 py-1 rounded border text-red-600 text-[0.55rem]">Remove</button></td>`; $('#pg-mi-table tbody')?.appendChild(tr); tr.querySelector('button').addEventListener('click',()=>{ tr.remove(); saveDraft(); }); $$('input',tr).forEach(i=>i.addEventListener('input', saveDraft)); }
+$('#pg-mi-add')?.addEventListener('click',()=>{ addPgMiRow({}); saveDraft(); });
+
+/* ========= PG Results ========= */
+function setupFixedPgRows(saved){ const tbody=$('#res-tbody'); if(!tbody) return; tbody.innerHTML=''; const rows=(saved && saved.length)? saved : Array.from({length:10}).map(()=>({})); rows.forEach(d=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td class="p-1"><input class="field applied" type="number" step="any" value="${d.applied||''}"></td><td class="p-1"><input class="field inc" type="number" step="any" value="${d.inc||''}"></td><td class="p-1"><input class="field erri" readonly></td><td class="p-1"><input class="field dec" type="number" step="any" value="${d.dec||''}"></td><td class="p-1"><input class="field errd" readonly></td><td class="p-1"><input class="field tol" readonly></td><td class="p-1"><span class="badge inline-flex px-2 py-1 rounded bg-gray-400">—</span></td>`; tbody.appendChild(tr); }); $$('input.applied,input.inc,input.dec',tbody).forEach(i=>i.addEventListener('input', evaluateAll)); evaluateAll(); }
+function tolAbs(){ const fs=parseFloat($('#fs')?.value||'0'), tv=parseFloat($('#tol-val')?.value||'0'); const t=$('#tol-type')?.value; const abs=(t==='percent')? fs*(tv/100):tv; $('#tol-preview') && ($('#tol-preview').textContent=abs?`± ${abs.toFixed(3)} ${$('#unit')?.value||''}`:''); return abs||0; }
+function evalRow(tr){ const a=parseFloat($('.applied',tr).value), inc=parseFloat($('.inc',tr).value), dec=parseFloat($('.dec',tr).value), tol=tolAbs(); const ei=(isFinite(a)&&isFinite(inc))?inc-a:NaN; const ed=(isFinite(a)&&isFinite(dec))?dec-a:NaN; $('.erri',tr).value=isFinite(ei)?ei.toFixed(3):''; $('.errd',tr).value=isFinite(ed)?ed.toFixed(3):''; $('.tol',tr).value=tol?`± ${tol.toFixed(3)} ${$('#unit')?.value||''}`:''; const pass=(isNaN(ei)||Math.abs(ei)<=tol)&&(isNaN(ed)||Math.abs(ed)<=tol); const b=tr.querySelector('.badge'); b.textContent=pass?'PASS':'FAIL'; b.className='badge inline-flex px-2 py-1 rounded '+(pass?'bg-green-600':'bg-red-600'); return pass; }
+function evaluateAll(){ const tbody=$('#res-tbody'); if(!tbody) return; let ok=true; $$('#res-tbody tr').forEach(tr=>{ if(!evalRow(tr)) ok=false; }); const o=$('#overall'); if(o){ o.textContent=ok?'PASS':'FAIL'; o.className='badge inline-flex px-2 py-1 rounded '+(ok?'bg-green-600':'bg-red-600'); } saveDraft(); }
+['fs','unit','tol-val','tol-type'].forEach(id=>{ const el=$('#'+id); el&&el.addEventListener('input', evaluateAll); el&&el.addEventListener('change', evaluateAll); });
+
+/* ========= UTTM Calcs ========= */
+function mmMin(vals){ const v=vals.map(x=>parseFloat(x)).filter(x=>isFinite(x)); return v.length?Math.min(...v):''; }
+function setVal(id,val){ const el=$('#'+id); if(el) el.value=(val===''?'' : (typeof val==='number'? (Math.round(val*1000)/1000).toString():val)); }
+function utRecalcShellMins(){ const s1=mmMin(['utS1_0','utS1_90','utS1_180','utS1_270'].map(id=>$('#'+id)?.value)); setVal('utS1_min',s1); const s2=mmMin(['utS2_0','utS2_90','utS2_180','utS2_270'].map(id=>$('#'+id)?.value)); setVal('utS2_min',s2); const s3=mmMin(['utS3_0','utS3_90','utS3_180','utS3_270'].map(id=>$('#'+id)?.value)); setVal('utS3_min',s3); const mins=[s1,s2,s3].filter(x=>x!==''); const gmin=mins.length?Math.min(...mins):''; setVal('utMinCurrent',gmin); if(!$('#utTactual')?.value && gmin!=='') setVal('utTactual',gmin); }
+function utRecalcThickness(){ const P=parseFloat($('#utDesignPressure')?.value||'0'); const R=(parseFloat($('#utOD')?.value||'0'))/2; const S=parseFloat($('#utStressShell')?.value||'0'); const E=parseFloat($('#utJointEff')?.value||'0'); const C=parseFloat($('#utCA')?.value||'0'); if(P>0&&R>0&&S>0&&E>0){ const t_in=(P*R)/(S*E+0.4*P)+C; const t_mm=t_in*25.4; setVal('ut_t_in',t_in); setVal('ut_t_mm',t_mm); if(!$('#utReqThk')?.value) setVal('utReqThk',t_mm); } else { setVal('ut_t_in',''); setVal('ut_t_mm',''); } const tReq=parseFloat($('#utReqThk')?.value||$('#ut_t_mm')?.value||'0'); const tAct=parseFloat($('#utMinCurrent')?.value||'0'); const tag=$('#utAcceptTag'); if(tag){ if(isFinite(tReq)&&isFinite(tAct)&&tReq>0&&tAct>0){ const ok=tAct>=tReq; tag.textContent=ok?'ACCEPTABLE':'NOT ACCEPTABLE'; tag.className='badge inline-flex px-2 py-1 rounded '+(ok?'bg-green-600':'bg-red-600'); } else { tag.textContent='PENDING'; tag.className='badge inline-flex px-2 py-1 rounded bg-gray-400'; } } }
+function utRecalcConclusion(){ const date=$('#utDate')?.value; const minNow=$('#utMinCurrent')?.value; const req=$('#utReqThk')?.value || $('#ut_t_mm')?.value; if(minNow && req){ $('#utConclusion').value=`Calculation performed using UT data (${date||'date'}). Minimum current thickness (${minNow} mm) exceeds required thickness (${req} mm). Vessel is FIT FOR SERVICE at design pressure.`; } }
+function utRecalcCorrosion(){ const Ti=parseFloat($('#utTinitial')?.value||''); const Ta=parseFloat($('#utTactual')?.value||$('#utMinCurrent')?.value||''); const yrs=parseFloat($('#utYears')?.value||''); const Treq=parseFloat($('#utReqThk')?.value||$('#ut_t_mm')?.value||''); if(isFinite(Ti)&&isFinite(Ta)&&isFinite(yrs)&&yrs>0){ const CR=(Ti-Ta)/yrs; setVal('utCR',CR); if(isFinite(Treq)&&isFinite(Ta)&&CR>0){ setVal('utRL',(Ta-Treq)/CR); } else setVal('utRL',''); } else { setVal('utCR',''); setVal('utRL',''); } }
+function utRecalcAll(){ utRecalcShellMins(); utRecalcThickness(); utRecalcConclusion(); utRecalcCorrosion(); saveDraft(); }
+['utS1_0','utS1_90','utS1_180','utS1_270','utS2_0','utS2_90','utS2_180','utS2_270','utS3_0','utS3_90','utS3_180','utS3_270','utReqThk','utDesignPressure','utOD','utStressShell','utJointEff','utCA','utDate','utTinitial','utTactual','utYears'].forEach(id=>{ const el=$('#'+id); el&&el.addEventListener('input', utRecalcAll); });
+
+/* ========= Attachments (images + PDF) ========= */
+function renderAttachments(list){ const grid=$('#attachments-preview'); const pdfList=$('#attachments-pdf-list'); grid.innerHTML=''; pdfList.innerHTML=''; list.forEach((f,i)=>{ if(f.mimeType && f.mimeType.startsWith('image/')){ const wrap=document.createElement('div'); wrap.className='att-item'; wrap.innerHTML=`<button class="att-remove no-print" data-idx="${i}" title="Remove">×</button>`; const img=new Image(); img.src=f.data; img.alt=f.name; img.className='att-thumb'; wrap.appendChild(img); const meta=document.createElement('div'); meta.className='att-meta'; meta.textContent=f.name; wrap.appendChild(meta); grid.appendChild(wrap); } else { // PDF or other
+    const row=document.createElement('div'); row.className='flex items-start gap-2 text-[0.65rem] p-2 rounded border bg-white relative'; row.innerHTML=`<button class="att-remove absolute top-1 right-1 text-[0.55rem] px-1 py-[1px] rounded bg-red-500 text-white no-print" data-idx="${i}">×</button><div class="w-10 h-10 att-pdf rounded"><span>PDF</span></div><div class="flex-1"> <div class="font-semibold truncate">${f.name}</div><div class="text-[0.55rem] text-slate-500">${(f.size||0)} bytes</div><div><a href="${f.data}" target="_blank" class="text-blue-600 underline no-print">Open</a></div></div>`; pdfList.appendChild(row); }
+  });
+  $$('.att-remove').forEach(btn=>btn.addEventListener('click',e=>{ const idx=parseInt(btn.dataset.idx,10); const r=buckets[currentType].find(x=>x.id===currentId); if(!r) return; r.attachments.splice(idx,1); saveDraft(); renderAttachments(r.attachments); })); }
+$('#add-attachments').addEventListener('change',e=>{ const files=e.target.files; const r=buckets[currentType].find(x=>x.id===currentId); if(!r) return; Array.from(files).forEach(f=>{ const fr=new FileReader(); fr.onload=ev=>{ (r.attachments||(r.attachments=[])).push({data:ev.target.result,name:f.name,mimeType:f.type,size:f.size}); saveDraft(); renderAttachments(r.attachments); }; fr.readAsDataURL(f); }); e.target.value=''; });
+$('#clear-attachments').addEventListener('click',()=>{ if(!confirm('Remove all attachments?')) return; const r=buckets[currentType].find(x=>x.id===currentId); if(r){ r.attachments=[]; saveDraft(); renderAttachments([]); } });
+
+/* ========= Toolbar ========= */
+$('#report-switcher').addEventListener('change', e=>loadDraft(e.target.value));
+$('#new-report').addEventListener('click', createDraft);
+$('#delete-report').addEventListener('click', async ()=>{ const list=buckets[currentType]; if(!list.length) return; if(!confirm('Delete this draft?')) return; await db.del(currentId); buckets[currentType]=list.filter(r=>r.id!==currentId); fillSwitcher(); if(buckets[currentType].length) loadDraft(buckets[currentType][0].id); else await createDraft(); });
+
+/* ========= Custom PDF Export ========= */
+async function exportPDF(){
+  // You can optionally display a status indicator here before capturing
+  // Hide header and non-content elements for PDF generation
+  const headerEl = document.querySelector('.brand-header');
+  const tabbarEl = document.querySelector('.tabbar');
+  const hideEls = [];
+  if(headerEl){ hideEls.push({el:headerEl, originalDisplay:headerEl.style.display}); headerEl.style.display='none'; }
+  if(tabbarEl){ hideEls.push({el:tabbarEl, originalDisplay:tabbarEl.style.display}); tabbarEl.style.display='none'; }
+  document.querySelectorAll('.print-hide').forEach(el=>{ hideEls.push({el, originalDisplay:el.style.display}); el.style.display='none'; });
+
+  const element = document.getElementById('main-card');
+  // Use html2canvas to capture the report
+  const canvas = await html2canvas(element, { scale: 2, useCORS:true, allowTaint:true, logging:false });
+  const imgData = canvas.toDataURL('image/png');
+  // jsPDF may expose a constructor under window.jspdf.jsPDF in the UMD build
+  // grab the constructor in a robust way.  If window.jspdf.jsPDF exists, use it.
+  // Otherwise, fall back to window.jsPDF (older builds attach directly).
+  const JsPDFConstructor = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF
+                          : (window.jsPDF || window.jspdf);
+  if(!JsPDFConstructor){
+    console.error('jsPDF library not loaded');
+    // restore hidden elements and abort
+    hideEls.forEach(item=>{ item.el.style.display=item.originalDisplay; });
+    return;
+  }
+  const pdf = new JsPDFConstructor('p', 'pt', 'a4');
+  // Compute PDF page dimensions and scale the screenshot to fit while preserving aspect ratio.
+  const pdfWidth = pdf.internal.pageSize.getWidth();
+  const pdfHeight = pdf.internal.pageSize.getHeight();
+  const imgWidth = canvas.width;
+  const imgHeight = canvas.height;
+  // leave small margins around content
+  const marginX = 20;
+  const marginY = 20;
+  const availWidth = pdfWidth - 2 * marginX;
+  const availHeight = pdfHeight - 2 * marginY;
+  const ratio = Math.min(availWidth / imgWidth, availHeight / imgHeight);
+  const scaledWidth = imgWidth * ratio;
+  const scaledHeight = imgHeight * ratio;
+  // If the content still exceeds one page height, scale further to fit
+  const finalHeight = Math.min(scaledHeight, availHeight);
+  const finalWidth = (scaledWidth / scaledHeight) * finalHeight;
+  pdf.addImage(imgData, 'PNG', marginX, marginY, finalWidth, finalHeight);
+  const serial = document.getElementById('header-serial')?.textContent || 'report';
+  const filename = serial.replace(/[\\/:*?"<>|]/g,'') + '.pdf';
+  pdf.save(filename);
+  // Restore hidden elements
+  hideEls.forEach(item=>{ item.el.style.display=item.originalDisplay; });
+}
+// Override existing handler: hook up our custom export
+$('#export-pdf').addEventListener('click', exportPDF);
+
+/* ========= Submit ========= */
+$('#submit-report').addEventListener('click', async ()=>{ const r=buckets[currentType].find(x=>x.id===currentId); if(!r){ alert('No draft'); return; } const overlay=$('#loading-overlay'); overlay.classList.remove('hidden'); const abbr=info[currentType].abbr; try{ let uttm=[], htGauges=[]; if(currentType==='uttm'){ uttm=[ {loc:'Top Head',a:'',b:'',c:'',d:'',rem:$('#utHeadTopRemark')?.value||''}, {loc:'Bottom Head',a:'',b:'',c:'',d:'',rem:$('#utHeadBottomRemark')?.value||''}, {loc:'Shell 1',a:$('#utS1_0')?.value||'', b:$('#utS1_90')?.value||'', c:$('#utS1_180')?.value||'', d:$('#utS1_270')?.value||'', rem:$('#utS1_rem')?.value||''}, {loc:'Shell 2',a:$('#utS2_0')?.value||'', b:$('#utS2_90')?.value||'', c:$('#utS2_180')?.value||'', d:$('#utS2_270')?.value||'', rem:$('#utS2_rem')?.value||''}, {loc:'Shell 3',a:$('#utS3_0')?.value||'', b:$('#utS3_90')?.value||'', c:$('#utS3_180')?.value||'', d:$('#utS3_270')?.value||'', rem:$('#utS3_rem')?.value||''} ]; }
+    if(currentType==='hydrotest'){ $$('#ht-gauge-rows tr').forEach(row=>{ const serial=row.querySelector('.ht-gauge-serial')?.value||''; const cert=row.querySelector('.ht-gauge-cert')?.value||''; const calDate=row.querySelector('.ht-gauge-cal-date')?.value||''; const expDate=row.querySelector('.ht-gauge-exp-date')?.value||''; const remarks=row.querySelector('.ht-gauge-remarks')?.value||''; if(serial||cert||calDate||expDate||remarks) htGauges.push({serial,cert,calDate,expDate,remarks}); }); }
+    const payload=JSON.stringify({ type:abbr, fields:r.fields, mi:r.mi, rows:r.rows, uttm, htGauges, srScope:r.srScope, srComments:r.srComments, attachments:r.attachments });
+    const resp=await fetch(SCRIPT_URL,{ method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:payload }); const text=await resp.text(); let data=null; try{ data=JSON.parse(text);}catch{ throw new Error(`Bad JSON (${resp.status}): ${text.slice(0,150)}`); } if(!resp.ok || !data.ok) throw new Error(data?.error||`HTTP ${resp.status}`); alert(`Report submitted!\nSerial: ${data.serial}\nPDF: ${data.pdfUrl}`); }catch(err){ console.error(err); alert('Submit failed: '+err.message); } finally{ overlay.classList.add('hidden'); }
+});
+
+/* ========= Boot ========= */
+(async()=>{ await db.open(); const all=await db.all(); all.forEach(r=>{ (buckets[r.type]||(buckets[r.type]=[])).push(r); }); setTheme(currentType); $$('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.type===currentType)); fillSwitcher(); if(buckets[currentType].length) loadDraft(buckets[currentType][0].id); else await createDraft(); })();
+
+/* ========= Print Optimizer ========= */
+(function(){
+  function preparePrint(){
+    // Hide empty attachment section
+    const attSec = document.querySelector('#attachments-preview')?.closest('section');
+    if(attSec){ const imgs = $('#attachments-preview').children.length; const pdfs=$('#attachments-pdf-list').children.length; if(!imgs && !pdfs){ attSec.classList.add('print-hidden-empty'); } }
+    // Drop wholly blank PG result rows
+    $$('#res-tbody tr').forEach(tr=>{ const hasVal=$$('input',tr).some(i=>i.value.trim()!=='' && !i.readOnly); if(!hasVal) tr.classList.add('print-fade'); });
+    // Auto fill UT conclusion if empty but data present
+    if(currentType==='uttm' && !$('#utConclusion').value){ utRecalcConclusion(); }
+  }
+  function after(){ $$('.print-fade').forEach(tr=>tr.classList.remove('print-fade')); $$('.print-hidden-empty').forEach(sec=>sec.classList.remove('print-hidden-empty')); }
+  window.addEventListener('beforeprint', preparePrint);
+  window.addEventListener('afterprint', after);
+})();
+</script>
+
+</body>
+</html>
