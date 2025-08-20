@@ -22,7 +22,7 @@
       font-family:'Inter',sans-serif !important;
       letter-spacing:normal !important;
       word-spacing:normal !important;
-      line-height:1.6 !important;
+      line-height:1.5 !important;
       white-space:normal !important;
       word-break:normal !important;
       text-transform:none !important;
@@ -44,9 +44,25 @@
     .brand-badge span{ font-size:.65rem; font-weight:600; letter-spacing:.05em; background:#2563eb; color:#fff; padding:.25rem .55rem; border-radius:.4rem; }
 
     .card{ border:1px solid #e5e7eb; border-radius:1rem; }
-    .field{ background:#f9fafb; border:2px solid #e5e7eb; border-radius:.55rem; padding:.6rem .85rem; width:100%; font-size:.85rem; }
+    .field{ 
+      background:#f9fafb; 
+      border:2px solid #e5e7eb; 
+      border-radius:.55rem; 
+      padding:.6rem .85rem; 
+      width:100%; 
+      font-size:.85rem; 
+      line-height:1.2;
+      height:auto;
+    }
     .field:focus{ outline:none; border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.25); }
-    textarea.field{ resize:vertical; min-height:2.75rem; }
+    textarea.field{ resize:vertical; min-height:2.75rem; line-height:1.4; }
+    
+    /* Center text vertically in input fields */
+    input.field, select.field {
+      padding-top:.65rem;
+      padding-bottom:.65rem;
+      line-height:1.1;
+    }
 
     .tabbar{ border:1px solid #e5e7eb; border-radius:1rem; padding:.5rem; background:#fff; }
     .tab-btn{ display:block; width:100%; text-align:center; padding:.9rem .75rem; border:1px solid #e5e7eb; border-radius:.8rem; font-weight:700; background:#fff; font-size:.7rem; line-height:1.05rem; }
@@ -842,60 +858,112 @@ $('#new-report').addEventListener('click', createDraft);
 $('#delete-report').addEventListener('click', async ()=>{ const list=buckets[currentType]; if(!list.length) return; if(!confirm('Delete this draft?')) return; await db.del(currentId); buckets[currentType]=list.filter(r=>r.id!==currentId); fillSwitcher(); if(buckets[currentType].length) loadDraft(buckets[currentType][0].id); else await createDraft(); });
 
 /* ========= Custom PDF Export ========= */
+// — Normalize: paksa semua textarea kembang penuh
+function normalizeTextareaHeights(root){
+  root.querySelectorAll('textarea').forEach(ta=>{
+    ta.style.height = 'auto';
+    ta.style.height = ta.scrollHeight + 'px';
+  });
+}
+
+// — Freeze: tukar input/select/textarea → blok teks sementara
+function freezeFormControls(root) {
+  const reps = [];
+  root.querySelectorAll('input, textarea, select').forEach(el => {
+    let value = '';
+    if (el.tagName === 'SELECT') {
+      value = el.options[el.selectedIndex]?.text || el.value || el.getAttribute('placeholder') || '';
+    } else {
+      value = el.value || el.getAttribute('placeholder') || '';
+    }
+
+    const cs = getComputedStyle(el);
+    const span = document.createElement('div');
+    span.className = 'h2c-repl';
+    span.textContent = value;
+
+    // KUNCI: tinggi guna scrollHeight untuk textarea (elak potong)
+    const w = el.offsetWidth + 'px';
+    const h = (el.tagName === 'TEXTAREA'
+                ? Math.max(el.scrollHeight, el.offsetHeight)
+                : el.offsetHeight) + 'px';
+
+    span.style.cssText = `
+      display:flex; align-items:center;
+      width:${w}; height:${h};
+      padding:${cs.paddingTop} ${cs.paddingRight} ${cs.paddingBottom} ${cs.paddingLeft};
+      border:${cs.borderTopWidth} solid ${cs.borderTopColor};
+      border-right:${cs.borderRightWidth} solid ${cs.borderRightColor};
+      border-bottom:${cs.borderBottomWidth} solid ${cs.borderBottomColor};
+      border-left:${cs.borderLeftWidth} solid ${cs.borderLeftColor};
+      border-radius:${cs.borderRadius};
+      background:${cs.backgroundColor === 'rgba(0, 0, 0, 0)' ? '#ffffff' : cs.backgroundColor};
+      color:${cs.color}; font:${cs.font}; line-height:${cs.lineHeight};
+      box-sizing:border-box; white-space:pre-wrap; overflow:visible;
+    `;
+
+    el.style.display = 'none';
+    el.parentNode.insertBefore(span, el);
+    reps.push({ el, span });
+  });
+  return reps;
+}
+
+function restoreFormControls(reps) {
+  reps.forEach(({ el, span }) => { span.remove(); el.style.display = ''; });
+}
+
+// — GANTI fungsi exportPDF anda dengan versi ini
 async function exportPDF(){
-  // You can optionally display a status indicator here before capturing
-  // Hide header and non-content elements for PDF generation
-  const headerEl = document.querySelector('.brand-header');
-  const tabbarEl = document.querySelector('.tabbar');
+  if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch(e){} }
+
   const hideEls = [];
-  if(headerEl){ hideEls.push({el:headerEl, originalDisplay:headerEl.style.display}); headerEl.style.display='none'; }
-  if(tabbarEl){ hideEls.push({el:tabbarEl, originalDisplay:tabbarEl.style.display}); tabbarEl.style.display='none'; }
-  document.querySelectorAll('.print-hide').forEach(el=>{ hideEls.push({el, originalDisplay:el.style.display}); el.style.display='none'; });
+  // Sorok header/tab/toolbar/no-print masa capture
+  document.querySelectorAll('.brand-header, .tabbar, .print-hide, .no-print').forEach(el=>{
+    if(!el) return;
+    hideEls.push({el, display: el.style.display});
+    el.style.display = 'none';
+  });
 
   const element = document.getElementById('main-card');
-  // Use html2canvas to capture the report
+
+  // Kembangkan semua textarea (termasuk Scope)
+  normalizeTextareaHeights(element);
+
+  // Bekukan control supaya html2canvas lukis teks kemas
+  const reps = freezeFormControls(element);
+
   const canvas = await html2canvas(element, { scale: 2, useCORS:true, allowTaint:true, logging:false });
   const imgData = canvas.toDataURL('image/png');
-  // jsPDF may expose a constructor under window.jspdf.jsPDF in the UMD build
-  // grab the constructor in a robust way.  If window.jspdf.jsPDF exists, use it.
-  // Otherwise, fall back to window.jsPDF (older builds attach directly).
+
+  // Pulihkan UI
+  restoreFormControls(reps);
+  hideEls.forEach(h=> h.el.style.display = h.display);
+
   const JsPDFConstructor = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF
-                          : (window.jsPDF || window.jspdf);
-  if(!JsPDFConstructor){
-    console.error('jsPDF library not loaded');
-    // restore hidden elements and abort
-    hideEls.forEach(item=>{ item.el.style.display=item.originalDisplay; });
-    return;
+                        : (window.jsPDF || window.jspdf);
+  const pdf = new JsPDFConstructor('p','pt','a4');
+
+  const pdfW = pdf.internal.pageSize.getWidth();
+  const pdfH = pdf.internal.pageSize.getHeight();
+  const marginX = 20, marginY = 20;
+  const ratio = (pdfW - 2*marginX) / canvas.width;
+  const scaledW = canvas.width * ratio;
+  const scaledH = canvas.height * ratio;
+  const usableH = pdfH - 2*marginY;
+  const pages = Math.ceil(scaledH / usableH) || 1;
+
+  for(let i=0;i<pages;i++){
+    const y = marginY - i*usableH;
+    pdf.addImage(imgData, 'PNG', marginX, y, scaledW, scaledH);
+    if(i<pages-1) pdf.addPage();
   }
-  const pdf = new JsPDFConstructor('p', 'pt', 'a4');
-  // Compute page and image dimensions for PDF. We scale the image to fill the page width
-  // (leaving a small margin), then split across pages vertically if needed.
-  const pdfWidth = pdf.internal.pageSize.getWidth();
-  const pdfHeight = pdf.internal.pageSize.getHeight();
-  const imgWidth = canvas.width;
-  const imgHeight = canvas.height;
-  const marginX = 20;
-  const marginY = 20;
-  // scale factor to fit width within PDF minus margins
-  const ratio = (pdfWidth - 2 * marginX) / imgWidth;
-  const scaledWidth = imgWidth * ratio;
-  const scaledHeight = imgHeight * ratio;
-  const usablePageHeight = pdfHeight - 2 * marginY;
-  const totalPages = Math.ceil(scaledHeight / usablePageHeight) || 1;
-  for(let pageIndex = 0; pageIndex < totalPages; pageIndex++){
-    // y offset: shift the image up by the height of previous pages
-    const yOffset = marginY - (pageIndex * usablePageHeight);
-    pdf.addImage(imgData, 'PNG', marginX, yOffset, scaledWidth, scaledHeight);
-    if(pageIndex < totalPages - 1) pdf.addPage();
-  }
+
   const serial = document.getElementById('header-serial')?.textContent || 'report';
-  const filename = serial.replace(/[\\/:*?"<>|]/g,'') + '.pdf';
-  pdf.save(filename);
-  // Restore hidden elements
-  hideEls.forEach(item=>{ item.el.style.display=item.originalDisplay; });
+  pdf.save(serial.replace(/[\\/:*?"<>|]/g,'') + '.pdf');
 }
 // Override existing handler: hook up our custom export
-$('#export-pdf').addEventListener('click', exportPDF);
+document.getElementById('export-pdf')?.addEventListener('click', exportPDF);
 
 /* ========= Submit ========= */
 $('#submit-report').addEventListener('click', async ()=>{ const r=buckets[currentType].find(x=>x.id===currentId); if(!r){ alert('No draft'); return; } const overlay=$('#loading-overlay'); overlay.classList.remove('hidden'); const abbr=info[currentType].abbr; try{ let uttm=[], htGauges=[]; if(currentType==='uttm'){ uttm=[ {loc:'Top Head',a:'',b:'',c:'',d:'',rem:$('#utHeadTopRemark')?.value||''}, {loc:'Bottom Head',a:'',b:'',c:'',d:'',rem:$('#utHeadBottomRemark')?.value||''}, {loc:'Shell 1',a:$('#utS1_0')?.value||'', b:$('#utS1_90')?.value||'', c:$('#utS1_180')?.value||'', d:$('#utS1_270')?.value||'', rem:$('#utS1_rem')?.value||''}, {loc:'Shell 2',a:$('#utS2_0')?.value||'', b:$('#utS2_90')?.value||'', c:$('#utS2_180')?.value||'', d:$('#utS2_270')?.value||'', rem:$('#utS2_rem')?.value||''}, {loc:'Shell 3',a:$('#utS3_0')?.value||'', b:$('#utS3_90')?.value||'', c:$('#utS3_180')?.value||'', d:$('#utS3_270')?.value||'', rem:$('#utS3_rem')?.value||''} ]; }
