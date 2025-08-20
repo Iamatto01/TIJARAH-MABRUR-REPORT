@@ -868,23 +868,26 @@ async function exportPDF(){
     return;
   }
   const pdf = new JsPDFConstructor('p', 'pt', 'a4');
-  // Compute PDF page dimensions and scale the screenshot to fit while preserving aspect ratio.
+  // Compute page and image dimensions for PDF. We scale the image to fill the page width
+  // (leaving a small margin), then split across pages vertically if needed.
   const pdfWidth = pdf.internal.pageSize.getWidth();
   const pdfHeight = pdf.internal.pageSize.getHeight();
   const imgWidth = canvas.width;
   const imgHeight = canvas.height;
-  // leave small margins around content
   const marginX = 20;
   const marginY = 20;
-  const availWidth = pdfWidth - 2 * marginX;
-  const availHeight = pdfHeight - 2 * marginY;
-  const ratio = Math.min(availWidth / imgWidth, availHeight / imgHeight);
+  // scale factor to fit width within PDF minus margins
+  const ratio = (pdfWidth - 2 * marginX) / imgWidth;
   const scaledWidth = imgWidth * ratio;
   const scaledHeight = imgHeight * ratio;
-  // If the content still exceeds one page height, scale further to fit
-  const finalHeight = Math.min(scaledHeight, availHeight);
-  const finalWidth = (scaledWidth / scaledHeight) * finalHeight;
-  pdf.addImage(imgData, 'PNG', marginX, marginY, finalWidth, finalHeight);
+  const usablePageHeight = pdfHeight - 2 * marginY;
+  const totalPages = Math.ceil(scaledHeight / usablePageHeight) || 1;
+  for(let pageIndex = 0; pageIndex < totalPages; pageIndex++){
+    // y offset: shift the image up by the height of previous pages
+    const yOffset = marginY - (pageIndex * usablePageHeight);
+    pdf.addImage(imgData, 'PNG', marginX, yOffset, scaledWidth, scaledHeight);
+    if(pageIndex < totalPages - 1) pdf.addPage();
+  }
   const serial = document.getElementById('header-serial')?.textContent || 'report';
   const filename = serial.replace(/[\\/:*?"<>|]/g,'') + '.pdf';
   pdf.save(filename);
