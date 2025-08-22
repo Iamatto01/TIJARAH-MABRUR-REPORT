@@ -255,6 +255,9 @@
         </ul>
       </div>
 
+  <!-- Page break marker for nicer PDF pagination -->
+  <div data-pagebreak></div>
+
       <section class="space-y-4 print-block">
         <h3 class="font-bold text-sm accent-text">Instrument Details</h3>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -858,88 +861,97 @@ $('#new-report').addEventListener('click', createDraft);
 $('#delete-report').addEventListener('click', async ()=>{ const list=buckets[currentType]; if(!list.length) return; if(!confirm('Delete this draft?')) return; await db.del(currentId); buckets[currentType]=list.filter(r=>r.id!==currentId); fillSwitcher(); if(buckets[currentType].length) loadDraft(buckets[currentType][0].id); else await createDraft(); });
 
 /* ========= Custom PDF Export ========= */
-// — Normalize: paksa semua textarea kembang penuh
+// Kembangkan semua textarea mengikut kandungan
 function normalizeTextareaHeights(root){
   root.querySelectorAll('textarea').forEach(ta=>{
-    ta.style.height = 'auto';
-    ta.style.height = ta.scrollHeight + 'px';
+    ta.style.height='auto';
+    ta.style.height=ta.scrollHeight+'px';
   });
 }
 
-// — Freeze: tukar input/select/textarea → blok teks sementara
-function freezeFormControls(root) {
-  const reps = [];
-  root.querySelectorAll('input, textarea, select').forEach(el => {
-    let value = '';
-    if (el.tagName === 'SELECT') {
-      value = el.options[el.selectedIndex]?.text || el.value || el.getAttribute('placeholder') || '';
-    } else {
-      value = el.value || el.getAttribute('placeholder') || '';
+// Tukar form control → teks tanpa kotak (untuk PDF)
+function freezeFormControls(root){
+  const reps=[];
+  root.querySelectorAll('input, textarea, select').forEach(el=>{
+    // Paparan nilai
+    let value='';
+    if(el.tagName==='SELECT'){
+      value = el.options[el.selectedIndex]?.text || el.value || el.placeholder || '';
+    }else if(el.type==='checkbox'){
+      value = el.checked ? '✓' : '—';
+    }else{
+      value = el.value || el.placeholder || '';
     }
 
-    const cs = getComputedStyle(el);
-    const span = document.createElement('div');
-    span.className = 'h2c-repl';
-    span.textContent = value;
+    const cs=getComputedStyle(el);
+    const span=document.createElement('div');
+    span.className='h2c-repl';
+    span.textContent=value;
 
-    // KUNCI: tinggi guna scrollHeight untuk textarea (elak potong)
-    const w = el.offsetWidth + 'px';
-    const h = (el.tagName === 'TEXTAREA'
-                ? Math.max(el.scrollHeight, el.offsetHeight)
-                : el.offsetHeight) + 'px';
+    // Tinggi gunakan scrollHeight untuk textarea supaya tak terpotong
+    const width = el.offsetWidth + 'px';
+    const height = (el.tagName==='TEXTAREA' ? Math.max(el.scrollHeight, el.offsetHeight) : el.offsetHeight) + 'px';
 
+    // TIADA border / background (nampak macam teks biasa)
     span.style.cssText = `
-      display:flex; align-items:center;
-      width:${w}; height:${h};
-      padding:${cs.paddingTop} ${cs.paddingRight} ${cs.paddingBottom} ${cs.paddingLeft};
-      border:${cs.borderTopWidth} solid ${cs.borderTopColor};
-      border-right:${cs.borderRightWidth} solid ${cs.borderRightColor};
-      border-bottom:${cs.borderBottomWidth} solid ${cs.borderBottomColor};
-      border-left:${cs.borderLeftWidth} solid ${cs.borderLeftColor};
-      border-radius:${cs.borderRadius};
-      background:${cs.backgroundColor === 'rgba(0, 0, 0, 0)' ? '#ffffff' : cs.backgroundColor};
+      display:flex; align-items:${el.tagName==='TEXTAREA'?'flex-start':'center'};
+      width:${width}; height:${height};
+      padding:0; margin:0; border:none; background:transparent;
       color:${cs.color}; font:${cs.font}; line-height:${cs.lineHeight};
       box-sizing:border-box; white-space:pre-wrap; overflow:visible;
     `;
 
-    el.style.display = 'none';
+    // Sembunyikan control asal & sisip replika
+    el.style.display='none';
     el.parentNode.insertBefore(span, el);
-    reps.push({ el, span });
+    reps.push({el, span});
   });
   return reps;
 }
-
-function restoreFormControls(reps) {
-  reps.forEach(({ el, span }) => { span.remove(); el.style.display = ''; });
+function restoreFormControls(reps){
+  reps.forEach(({el,span})=>{ span.remove(); el.style.display=''; });
 }
 
-// — GANTI fungsi exportPDF anda dengan versi ini
-async function exportPDF(){
-  if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch(e){} }
+// Dapatkan senarai titik potong yang selamat (sebelum heading/marker)
+function getBreakPoints(root, scale){
+  const tops=[0];
+  const rootTop = root.getBoundingClientRect().top + window.scrollY;
+  root.querySelectorAll('[data-pagebreak], h2.section-title').forEach(n=>{
+    const t = n.getBoundingClientRect().top + window.scrollY - rootTop;
+    tops.push(Math.max(0, Math.floor(t*scale)-10)); // -10px supaya potong betul-betul sebelum tajuk
+  });
+  tops.push(Math.floor(root.scrollHeight*scale)); // hujung
+  tops.sort((a,b)=>a-b);
+  return tops;
+}
 
-  const hideEls = [];
-  // Sorok header/tab/toolbar/no-print masa capture
+// Tukar exportPDF kepada versi pemotongan tanpa overlap
+async function exportPDF(){
+  if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
+
+  // Sembunyi elemen bukan kandungan
+  const hideEls=[];
   document.querySelectorAll('.brand-header, .tabbar, .print-hide, .no-print').forEach(el=>{
-    if(!el) return;
-    hideEls.push({el, display: el.style.display});
-    el.style.display = 'none';
+    hideEls.push({el,display:el.style.display}); el.style.display='none';
   });
 
   const element = document.getElementById('main-card');
 
-  // Kembangkan semua textarea (termasuk Scope)
+  // Pastikan textarea dah membesar ikut teks
   normalizeTextareaHeights(element);
 
-  // Bekukan control supaya html2canvas lukis teks kemas
+  // Tukar semua control jadi teks tanpa kotak
   const reps = freezeFormControls(element);
 
-  const canvas = await html2canvas(element, { scale: 2, useCORS:true, allowTaint:true, logging:false });
-  const imgData = canvas.toDataURL('image/png');
+  // Render ke canvas
+  const scale = 2; // sama seperti sebelum ini
+  const canvas = await html2canvas(element, { scale, useCORS:true, allowTaint:true, logging:false });
 
-  // Pulihkan UI
+  // Pulihkan UI (supaya kembali seperti asal selepas simpan)
   restoreFormControls(reps);
-  hideEls.forEach(h=> h.el.style.display = h.display);
+  hideEls.forEach(h=>h.el.style.display=h.display);
 
+  // jsPDF
   const JsPDFConstructor = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF
                         : (window.jsPDF || window.jspdf);
   const pdf = new JsPDFConstructor('p','pt','a4');
@@ -947,22 +959,45 @@ async function exportPDF(){
   const pdfW = pdf.internal.pageSize.getWidth();
   const pdfH = pdf.internal.pageSize.getHeight();
   const marginX = 20, marginY = 20;
-  const ratio = (pdfW - 2*marginX) / canvas.width;
-  const scaledW = canvas.width * ratio;
-  const scaledH = canvas.height * ratio;
-  const usableH = pdfH - 2*marginY;
-  const pages = Math.ceil(scaledH / usableH) || 1;
 
-  for(let i=0;i<pages;i++){
-    const y = marginY - i*usableH;
-    pdf.addImage(imgData, 'PNG', marginX, y, scaledW, scaledH);
-    if(i<pages-1) pdf.addPage();
+  // Skala gambar → PDF
+  const imgW = canvas.width, imgH = canvas.height;
+  const ratio = (pdfW - 2*marginX) / imgW;
+  const pageH_px = Math.floor((pdfH - 2*marginY) / ratio); // tinggi bahagian pada unit canvas-pixel
+
+  // Titik potong yang “cantik”
+  const cuts = getBreakPoints(element, scale);
+
+  // Potong canvas mengikut muka surat TANPA overlap dan ikut titik potong
+  let y = 0;
+  while(y < imgH){
+    const target = y + pageH_px;
+    // cari titik potong <= target dan > y+60px (elak halaman kosong)
+    let cut = null;
+    for(let i=cuts.length-1;i>=0;i--){
+      if(cuts[i] <= target && cuts[i] > y + 60){ cut = cuts[i]; break; }
+    }
+    if(!cut) cut = Math.min(target, imgH);
+
+    const sliceH = Math.max(1, cut - y);
+
+    // Crop kepada canvas kecil (halaman)
+    const pageCanvas = document.createElement('canvas');
+    pageCanvas.width = imgW;
+    pageCanvas.height = sliceH;
+    const ctx = pageCanvas.getContext('2d');
+    ctx.drawImage(canvas, 0, y, imgW, sliceH, 0, 0, imgW, sliceH);
+
+    const dataURL = pageCanvas.toDataURL('image/png');
+    pdf.addImage(dataURL, 'PNG', marginX, marginY, imgW*ratio, sliceH*ratio);
+
+    y = cut;
+    if(y < imgH) pdf.addPage();
   }
 
   const serial = document.getElementById('header-serial')?.textContent || 'report';
-  pdf.save(serial.replace(/[\\/:*?"<>|]/g,'') + '.pdf');
+  pdf.save(serial.replace(/[\\/:*?"<>|]/g,'')+'.pdf');
 }
-// Override existing handler: hook up our custom export
 document.getElementById('export-pdf')?.addEventListener('click', exportPDF);
 
 /* ========= Submit ========= */
